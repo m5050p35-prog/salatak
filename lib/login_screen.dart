@@ -56,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen>
     await Storage.setCurrentUser(email);
     final data = await Storage.loadUser(email);
 
-    // حدّث الاسم إذا تغير
     if (data.name != name) {
       final updated = UserData(
         identifier: email,
@@ -122,7 +121,8 @@ class _LoginScreenState extends State<LoginScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 120, height: 120,
+                        width: 120,
+                        height: 120,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -130,30 +130,40 @@ class _LoginScreenState extends State<LoginScreen>
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
                               blurRadius: 24,
-                              offset: const Offset(0, 8)),
+                              offset: const Offset(0, 8),
+                            ),
                           ],
                         ),
-                        child: Icon(Icons.mosque, size: 66,
-                            color: scheme.primary),
+                        child: Icon(
+                          Icons.mosque,
+                          size: 66,
+                          color: scheme.primary,
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      Text(l.appName,
+                      Text(
+                        l.appName,
                         style: const TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          letterSpacing: 1.2)),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text(l.appSubtitle,
+                      Text(
+                        l.appSubtitle,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.95))),
+                          color: Colors.white.withValues(alpha: 0.95),
+                        ),
+                      ),
                       SizedBox(height: size.height * 0.05),
-
                       Card(
                         elevation: 8,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(22),
                           child: Form(
@@ -161,12 +171,14 @@ class _LoginScreenState extends State<LoginScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // الاسم
+                                // ===== الاسم =====
                                 Text(
                                   isAr ? 'الاسم' : 'Name',
                                   style: const TextStyle(
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w600)),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _nameCtrl,
@@ -186,18 +198,23 @@ class _LoginScreenState extends State<LoginScreen>
                                     return null;
                                   },
                                   decoration: InputDecoration(
-                                    hintText: isAr ? 'مثال: أحمد' : 'e.g. Ahmed',
-                                    prefixIcon:
-                                        const Icon(Icons.person_outline)),
+                                    hintText:
+                                        isAr ? 'مثال: أحمد' : 'e.g. Ahmed',
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
 
-                                // البريد
+                                // ===== البريد =====
                                 Text(
                                   isAr ? 'البريد الإلكتروني' : 'Email',
                                   style: const TextStyle(
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w600)),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _emailCtrl,
@@ -218,26 +235,36 @@ class _LoginScreenState extends State<LoginScreen>
                                     }
                                     return null;
                                   },
-                                  decoration: InputDecoration(
+                                  decoration: const InputDecoration(
                                     hintText: 'example@mail.com',
                                     prefixIcon:
-                                        const Icon(Icons.email_outlined)),
+                                        Icon(Icons.email_outlined),
+                                  ),
                                 ),
                                 const SizedBox(height: 22),
+
+                                // ===== زر الدخول =====
                                 SizedBox(
                                   height: 54,
                                   child: FilledButton(
                                     onPressed: _loading ? null : _login,
                                     child: _loading
                                         ? const SizedBox(
-                                            width: 24, height: 24,
-                                            child: CircularProgressIndicator(
+                                            width: 24,
+                                            height: 24,
+                                            child:
+                                                CircularProgressIndicator(
                                               strokeWidth: 2.5,
-                                              color: Colors.white))
-                                        : Text(l.login,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                            l.login,
                                             style: const TextStyle(
                                               fontSize: 18,
-                                              fontWeight: FontWeight.bold)),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ],
@@ -246,11 +273,14 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Text(l.noPasswordNote,
+                      Text(
+                        l.noPasswordNote,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.85))),
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
                     ],
                   ),
                 ),
