@@ -256,7 +256,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
           decoration: BoxDecoration(
             color: value
                 ? Colors.green
-                : Colors.grey.withValues(alpha: 0.12),
+                : Colors.grey.withOpacity(0.12),
             shape: BoxShape.circle,
           ),
           child: value
