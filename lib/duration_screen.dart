@@ -38,9 +38,7 @@ class _DurationScreenState extends State<DurationScreen> {
             colors: [
               scheme.primary.withValues(alpha: 0.08),
               Theme.of(context).scaffoldBackgroundColor,
-            ],
-          ),
-        ),
+            ])),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -52,16 +50,14 @@ class _DurationScreenState extends State<DurationScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: scheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                    borderRadius: BorderRadius.circular(16)),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 22,
                         backgroundColor: scheme.primary,
                         child: const Icon(Icons.person,
-                            color: Colors.white, size: 24),
-                      ),
+                            color: Colors.white, size: 24)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -70,7 +66,8 @@ class _DurationScreenState extends State<DurationScreen> {
                             Text('${l.welcome} ${widget.userId}',
                                 style: const TextStyle(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.bold)),
+                                    fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 2),
                             Text(l.chooseDurationSubtitle,
                                 style: const TextStyle(
@@ -116,16 +113,12 @@ class _DurationScreenState extends State<DurationScreen> {
                         (_selectedDays == null || _saving) ? null : _start,
                     child: _saving
                         ? const SizedBox(
-                            width: 24,
-                            height: 24,
+                            width: 24, height: 24,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2.5, color: Colors.white),
-                          )
-                        : Text(
-                            l.start,
+                                strokeWidth: 2.5, color: Colors.white))
+                        : Text(l.start,
                             style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -150,16 +143,14 @@ class _DurationScreenState extends State<DurationScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l.cancel),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: Text(l.cancel)),
           FilledButton(
             onPressed: () {
               final v = int.tryParse(ctrl.text.trim());
               Navigator.pop(context, v);
             },
-            child: Text(l.confirm),
-          ),
+            child: Text(l.confirm)),
         ],
       ),
     );
@@ -168,7 +159,14 @@ class _DurationScreenState extends State<DurationScreen> {
   Future<void> _start() async {
     setState(() => _saving = true);
     final days = _selectedDays!;
-    final data = UserData(identifier: widget.userId);
+
+    // احتفظ بالاسم من بيانات المستخدم الحالية
+    final existing = await Storage.loadUser(widget.userId);
+
+    final data = UserData(
+      identifier: widget.userId,
+      name: existing.name,
+    );
     final now = DateTime.now();
     for (int i = 0; i < days; i++) {
       final d = now.add(Duration(days: i));
@@ -228,44 +226,33 @@ class _OptionCard extends StatelessWidget {
             color: selected
                 ? scheme.primary
                 : Colors.grey.withValues(alpha: 0.15),
-            width: selected ? 2 : 1,
-          ),
+            width: selected ? 2 : 1),
           boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: scheme.primary.withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+              ? [BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4))]
               : [],
         ),
         child: Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 46, height: 46,
               decoration: BoxDecoration(
                 color: selected
                     ? scheme.primary
                     : scheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: selected ? Colors.white : scheme.primary,
-              ),
+                borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon,
+                  color: selected ? Colors.white : scheme.primary),
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? scheme.primary : null,
-                ),
-              ),
+              child: Text(label,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? scheme.primary : null)),
             ),
             if (days > 0)
               Container(
@@ -273,16 +260,12 @@ class _OptionCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: scheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$days ${l.daysCount}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                  borderRadius: BorderRadius.circular(8)),
+                child: Text('$days ${l.daysCount}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.primary,
+                      fontWeight: FontWeight.bold)),
               ),
             if (selected) ...[
               const SizedBox(width: 8),

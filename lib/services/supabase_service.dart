@@ -2,25 +2,22 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models.dart';
 
 class SupabaseService {
-  // ⚠️ مفتاح عام (آمن للنشر في الكود)
   static const String _url = 'https://alxajjpidlyyhikpxkcj.supabase.co';
-  static const String _anonKey =
+  static const String _key =
       'sb_publishable_GUWkSwv_8xhGTipaX6pwiQ__F01ka97';
 
   static SupabaseClient get _client => Supabase.instance.client;
 
-  /// تهيئة Supabase (تُستدعى من main)
   static Future<void> initialize() async {
     await Supabase.initialize(
       url: _url,
-      anonKey: _anonKey,
+      publishableKey: _key,
     );
   }
 
-  /// حفظ/تحديث بيانات المستخدم كاملة في Supabase
+  /// حفظ/تحديث بيانات المستخدم كاملة
   static Future<bool> saveUser(UserData user) async {
     try {
-      // 1) ابحث عن المستخدم أو أنشئه
       final existing = await _client
           .from('users')
           .select('id')
@@ -31,21 +28,25 @@ class SupabaseService {
       if (existing == null) {
         final created = await _client
             .from('users')
-            .insert({'identifier': user.identifier})
+            .insert({
+              'identifier': user.identifier,
+              'name': user.name,
+            })
             .select('id')
             .single();
         userId = created['id'] as String;
       } else {
         userId = existing['id'] as String;
-        // تحديث updated_at
         await _client.from('users').update({
+          'name': user.name,
           'updated_at': DateTime.now().toIso8601String(),
         }).eq('id', userId);
       }
 
-      // 2) احذف كل الأيام القديمة ثم أضف الجديدة (أسرع من التحديث المفرد)
+      // احذف الأيام القديمة
       await _client.from('prayer_days').delete().eq('user_id', userId);
 
+      // أدرج الأيام الجديدة على دفعات
       if (user.days.isNotEmpty) {
         final rows = user.days
             .map((d) => {
@@ -60,7 +61,6 @@ class SupabaseService {
                 })
             .toList();
 
-        // إدراج على دفعات (لتجنب حدود الحجم)
         const batchSize = 500;
         for (int i = 0; i < rows.length; i += batchSize) {
           final end = (i + batchSize < rows.length)
@@ -71,28 +71,28 @@ class SupabaseService {
               .insert(rows.sublist(i, end));
         }
       }
-
       return true;
     } catch (e) {
-      // print للتشخيص فقط
       // ignore: avoid_print
       print('Supabase saveUser error: $e');
       return false;
     }
   }
 
-  /// تحميل بيانات المستخدم من Supabase
+  /// تحميل بيانات المستخدم
   static Future<UserData?> loadUser(String identifier) async {
     try {
       final userRow = await _client
           .from('users')
-          .select('id')
+          .select('id, name')
           .eq('identifier', identifier)
           .maybeSingle();
 
       if (userRow == null) return null;
 
       final userId = userRow['id'] as String;
+      final name = (userRow['name'] as String?) ?? '';
+
       final daysRows = await _client
           .from('prayer_days')
           .select()
@@ -111,25 +111,11 @@ class SupabaseService {
               ))
           .toList();
 
-      return UserData(identifier: identifier, days: days);
+      return UserData(identifier: identifier, name: name, days: days);
     } catch (e) {
       // ignore: avoid_print
       print('Supabase loadUser error: $e');
       return null;
-    }
-  }
-
-  /// هل المستخدم موجود في Supabase؟
-  static Future<bool> userExists(String identifier) async {
-    try {
-      final row = await _client
-          .from('users')
-          .select('id')
-          .eq('identifier', identifier)
-          .maybeSingle();
-      return row != null;
-    } catch (_) {
-      return false;
     }
   }
 }

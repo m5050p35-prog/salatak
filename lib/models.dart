@@ -42,10 +42,14 @@ class PrayerDay {
 
 class UserData {
   final String identifier;
+  final String name;
   final List<PrayerDay> days;
 
-  UserData({required this.identifier, List<PrayerDay>? days})
-      : days = days ?? [];
+  UserData({
+    required this.identifier,
+    this.name = '',
+    List<PrayerDay>? days,
+  }) : days = days ?? [];
 
   int get totalDays => days.length;
   int get totalCompleted => days.fold(0, (s, d) => s + d.completedCount);
@@ -53,11 +57,13 @@ class UserData {
 
   Map<String, dynamic> toJson() => {
         'identifier': identifier,
+        'name': name,
         'days': days.map((d) => d.toJson()).toList(),
       };
 
   factory UserData.fromJson(Map<String, dynamic> j) => UserData(
         identifier: j['identifier'] as String,
+        name: j['name'] as String? ?? '',
         days: (j['days'] as List)
             .map((e) => PrayerDay.fromJson(e as Map<String, dynamic>))
             .toList(),

@@ -12,7 +12,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final _ctrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _loading = false;
   late AnimationController _animController;
@@ -27,22 +28,19 @@ class _LoginScreenState extends State<LoginScreen>
       duration: const Duration(milliseconds: 900),
     );
     _fadeAnim = CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOut,
-    );
+      parent: _animController, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.15),
       end: Offset.zero,
     ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutCubic,
-    ));
+      parent: _animController, curve: Curves.easeOutCubic));
     _animController.forward();
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -50,39 +48,44 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    final value = _ctrl.text.trim();
 
-    // 1) احفظ المستخدم محلياً
-    final ok = await Storage.setCurrentUser(value);
-    if (!ok) {
+    final name = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim().toLowerCase();
+
+    await Storage.setCurrentUser(email);
+    final data = await Storage.loadUser(email);
+
+    // حدّث الاسم إذا تغير
+    if (data.name != name) {
+      final updated = UserData(
+        identifier: email,
+        name: name,
+        days: data.days,
+      );
+      await Storage.saveUser(updated);
       if (!mounted) return;
       setState(() => _loading = false);
-      _showError('فشل الحفظ، حاول مرة أخرى');
+      _navigate(updated);
       return;
     }
 
-    // 2) حمّل بياناته (يحاول Supabase، وإلا cache محلي)
-    final data = await Storage.loadUser(value);
-
     if (!mounted) return;
     setState(() => _loading = false);
+    _navigate(data);
+  }
 
-    // 3) التوجيه المناسب
+  void _navigate(UserData data) {
     if (data.days.isEmpty) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => DurationScreen(userId: value)),
+        MaterialPageRoute(
+          builder: (_) => DurationScreen(userId: data.identifier)),
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => TrackerScreen(userId: value)),
+        MaterialPageRoute(
+          builder: (_) => TrackerScreen(userId: data.identifier)),
       );
     }
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
   }
 
   @override
@@ -90,6 +93,7 @@ class _LoginScreenState extends State<LoginScreen>
     final l = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.of(context).size;
+    final isAr = l.isArabic;
 
     return Scaffold(
       body: Container(
@@ -116,10 +120,8 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // الشعار
                       Container(
-                        width: 130,
-                        height: 130,
+                        width: 120, height: 120,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -127,42 +129,30 @@ class _LoginScreenState extends State<LoginScreen>
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
                               blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
+                              offset: const Offset(0, 8)),
                           ],
                         ),
-                        child: Icon(
-                          Icons.mosque,
-                          size: 72,
-                          color: scheme.primary,
-                        ),
+                        child: Icon(Icons.mosque, size: 66,
+                            color: scheme.primary),
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        l.appName,
+                      const SizedBox(height: 18),
+                      Text(l.appName,
                         style: const TextStyle(
-                          fontSize: 38,
+                          fontSize: 36,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
+                          letterSpacing: 1.2)),
                       const SizedBox(height: 6),
-                      Text(
-                        l.appSubtitle,
+                      Text(l.appSubtitle,
                         style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.white.withValues(alpha: 0.95),
-                        ),
-                      ),
-                      SizedBox(height: size.height * 0.06),
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.95))),
+                      SizedBox(height: size.height * 0.05),
 
-                      // بطاقة الدخول
                       Card(
                         elevation: 8,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                          borderRadius: BorderRadius.circular(20)),
                         child: Padding(
                           padding: const EdgeInsets.all(22),
                           child: Form(
@@ -170,60 +160,83 @@ class _LoginScreenState extends State<LoginScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // الاسم
                                 Text(
-                                  l.enterEmailOrPhone,
+                                  isAr ? 'الاسم' : 'Name',
                                   style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 8),
                                 TextFormField(
-                                  controller: _ctrl,
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.done,
-                                  onFieldSubmitted: (_) => _login(),
+                                  controller: _nameCtrl,
+                                  textInputAction: TextInputAction.next,
                                   validator: (v) {
-                                    final err = Storage.validateIdentifier(v ?? '');
+                                    final err = Storage.validateName(v ?? '');
                                     if (err == 'empty') {
-                                      return l.isArabic
-                                          ? 'الرجاء إدخال البريد أو الهاتف'
-                                          : 'Please enter email or phone';
+                                      return isAr
+                                          ? 'الرجاء إدخال الاسم'
+                                          : 'Please enter your name';
                                     }
-                                    if (err == 'invalid') {
-                                      return l.isArabic
-                                          ? 'صيغة غير صحيحة'
-                                          : 'Invalid format';
+                                    if (err == 'short') {
+                                      return isAr
+                                          ? 'الاسم قصير جداً'
+                                          : 'Name too short';
                                     }
                                     return null;
                                   },
                                   decoration: InputDecoration(
-                                    hintText: l.emailHint,
+                                    hintText: isAr ? 'مثال: أحمد' : 'e.g. Ahmed',
                                     prefixIcon:
-                                        const Icon(Icons.person_outline),
-                                  ),
+                                        const Icon(Icons.person_outline)),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 16),
+
+                                // البريد
+                                Text(
+                                  isAr ? 'البريد الإلكتروني' : 'Email',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _emailCtrl,
+                                  keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _login(),
+                                  validator: (v) {
+                                    final err = Storage.validateEmail(v ?? '');
+                                    if (err == 'empty') {
+                                      return isAr
+                                          ? 'الرجاء إدخال البريد'
+                                          : 'Please enter email';
+                                    }
+                                    if (err == 'invalid') {
+                                      return isAr
+                                          ? 'صيغة البريد غير صحيحة'
+                                          : 'Invalid email format';
+                                    }
+                                    return null;
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: 'example@mail.com',
+                                    prefixIcon:
+                                        const Icon(Icons.email_outlined)),
+                                ),
+                                const SizedBox(height: 22),
                                 SizedBox(
                                   height: 54,
                                   child: FilledButton(
                                     onPressed: _loading ? null : _login,
                                     child: _loading
                                         ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
+                                            width: 24, height: 24,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2.5,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : Text(
-                                            l.login,
+                                              color: Colors.white))
+                                        : Text(l.login,
                                             style: const TextStyle(
                                               fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                              fontWeight: FontWeight.bold)),
                                   ),
                                 ),
                               ],
@@ -232,14 +245,11 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Text(
-                        l.noPasswordNote,
+                      Text(l.noPasswordNote,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.85),
-                        ),
-                      ),
+                          color: Colors.white.withValues(alpha: 0.85))),
                     ],
                   ),
                 ),

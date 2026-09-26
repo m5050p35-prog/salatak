@@ -50,8 +50,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
       _syncing = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ تمت المزامنة مع السحابة')),
-    );
+      const SnackBar(content: Text('✅ تمت المزامنة')));
   }
 
   Future<void> _addDay() async {
@@ -70,29 +69,41 @@ class _TrackerScreenState extends State<TrackerScreen> {
     await _save();
   }
 
-  Future<void> _removeLastDay() async {
-    if (_data == null || _data!.days.isEmpty) return;
+  Future<void> _removeDay(int index) async {
+    if (_data == null) return;
     final l = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(l.deleteLastDay),
-        content: Text(l.deleteLastDayNote),
+        title: Text(l.isArabic ? 'حذف اليوم؟' : 'Delete day?'),
+        content: Text(l.isArabic
+            ? 'سيتم حذف هذا اليوم نهائياً.'
+            : 'This day will be permanently deleted.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l.cancel),
-          ),
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l.cancel)),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l.delete),
-          ),
+            child: Text(l.delete)),
         ],
       ),
     );
     if (ok == true) {
-      setState(() => _data!.days.removeLast());
+      setState(() {
+        _data!.days.removeAt(index);
+        // إعادة ترقيم الأيام
+        for (int i = 0; i < _data!.days.length; i++) {
+          final d = _data!.days[i];
+          _data!.days[i] = PrayerDay(
+            id: i + 1,
+            date: d.date,
+            fajr: d.fajr, dhuhr: d.dhuhr, asr: d.asr,
+            maghrib: d.maghrib, isha: d.isha,
+          );
+        }
+      });
       await _save();
     }
   }
@@ -101,8 +112,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
     await Storage.logout();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+      MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   Future<void> _reset() async {
@@ -114,24 +124,25 @@ class _TrackerScreenState extends State<TrackerScreen> {
         content: Text(l.resetTableNote),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l.cancel),
-          ),
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l.cancel)),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(l.reset),
-          ),
+            child: Text(l.reset)),
         ],
       ),
     );
     if (ok == true) {
-      await Storage.saveUser(UserData(identifier: widget.userId));
+      final existing = _data;
+      await Storage.saveUser(UserData(
+        identifier: widget.userId,
+        name: existing?.name ?? '',
+      ));
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-            builder: (_) => DurationScreen(userId: widget.userId)),
-      );
+            builder: (_) => DurationScreen(userId: widget.userId)));
     }
   }
 
@@ -152,23 +163,16 @@ class _TrackerScreenState extends State<TrackerScreen> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: SizedBox(
-                width: 20,
-                height: 20,
+                width: 20, height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              ),
-            )
+                    strokeWidth: 2, color: Colors.white)))
           else
             IconButton(
-              tooltip: 'مزامنة',
               icon: const Icon(Icons.cloud_sync),
-              onPressed: _syncNow,
-            ),
+              onPressed: _syncNow),
           IconButton(
-            tooltip: l.reset,
             icon: const Icon(Icons.refresh),
-            onPressed: _reset,
-          ),
+            onPressed: _reset),
         ],
       ),
       drawer: AppDrawer(onLogout: _logout, onReset: _reset),
@@ -181,24 +185,284 @@ class _TrackerScreenState extends State<TrackerScreen> {
         children: [
           _SummaryCard(data: data, l: l),
           Expanded(
-            child: _Table(
-              data: data,
-              l: l,
-              onLongPress: _removeLastDay,
-              onToggle: (day, idx) async {
-                setState(() {
-                  switch (idx) {
-                    case 0: day.fajr = !day.fajr; break;
-                    case 1: day.dhuhr = !day.dhuhr; break;
-                    case 2: day.asr = !day.asr; break;
-                    case 3: day.maghrib = !day.maghrib; break;
-                    case 4: day.isha = !day.isha;
-                  }
-                });
-                await _save();
-              },
-            ),
+            child: data.days.isEmpty
+                ? _EmptyState(l: l)
+                : ListView.builder(
+                    padding: const EdgeInsets.only(
+                        left: 12, right: 12, bottom: 100, top: 4),
+                    itemCount: data.days.length,
+                    itemBuilder: (_, i) => _DayCard(
+                      day: data.days[i],
+                      l: l,
+                      onTap: (idx) async {
+                        setState(() {
+                          final d = data.days[i];
+                          switch (idx) {
+                            case 0: d.fajr = !d.fajr; break;
+                            case 1: d.dhuhr = !d.dhuhr; break;
+                            case 2: d.asr = !d.asr; break;
+                            case 3: d.maghrib = !d.maghrib; break;
+                            case 4: d.isha = !d.isha;
+                          }
+                        });
+                        await _save();
+                      },
+                      onDelete: () => _removeDay(i),
+                    ),
+                  ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final AppLocalizations l;
+  const _EmptyState({required this.l});
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.calendar_today_outlined,
+              size: 70, color: Colors.grey.shade400),
+          const SizedBox(height: 14),
+          Text(l.noDaysYet,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+/// بطاقة كل يوم
+class _DayCard extends StatelessWidget {
+  final PrayerDay day;
+  final AppLocalizations l;
+  final Future<void> Function(int) onTap;
+  final VoidCallback onDelete;
+
+  const _DayCard({
+    required this.day,
+    required this.l,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isComplete = day.isComplete;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final prayers = [
+      _P(l.fajr, day.fajr, Icons.dark_mode_outlined),
+      _P(l.dhuhr, day.dhuhr, Icons.wb_sunny_outlined),
+      _P(l.asr, day.asr, Icons.wb_twilight),
+      _P(l.maghrib, day.maghrib, Icons.wb_twilight),
+      _P(l.isha, day.isha, Icons.nights_stay_outlined),
+    ];
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark
+            ? (isComplete
+                ? Colors.green.withValues(alpha: 0.15)
+                : const Color(0xFF1A2332))
+            : (isComplete
+                ? Colors.green.withValues(alpha: 0.08)
+                : Colors.white),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isComplete
+              ? Colors.green
+              : scheme.primary.withValues(alpha: 0.15),
+          width: isComplete ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // العنوان + الحذف
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${l.isArabic ? "اليوم" : "Day"} ${day.id}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: scheme.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    day.date,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                if (isComplete)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.verified,
+                            color: Colors.white, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          l.isArabic ? 'اكتمل' : 'Complete',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                IconButton(
+                  onPressed: onDelete,
+                  icon: Icon(Icons.close,
+                      size: 18, color: Colors.grey.shade500),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: l.isArabic ? 'حذف' : 'Delete',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // الصلوات الخمس
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(5, (i) {
+                return _PrayerCircle(
+                  label: prayers[i].label,
+                  value: prayers[i].value,
+                  icon: prayers[i].icon,
+                  onTap: () => onTap(i),
+                );
+              }),
+            ),
+
+            // مؤشر إكمال اليوم
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: day.completedCount / 5,
+                minHeight: 6,
+                backgroundColor: scheme.primary.withValues(alpha: 0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isComplete ? Colors.green : scheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${day.completedCount}/5 ${l.isArabic ? "مكتمل" : "completed"}',
+              style: TextStyle(
+                fontSize: 11,
+                color: isComplete ? Colors.green : Colors.grey,
+                fontWeight: isComplete ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _P {
+  final String label;
+  final bool value;
+  final IconData icon;
+  _P(this.label, this.value, this.icon);
+}
+
+class _PrayerCircle extends StatelessWidget {
+  final String label;
+  final bool value;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _PrayerCircle({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              color: value
+                  ? Colors.green
+                  : scheme.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: value
+                    ? Colors.green
+                    : scheme.primary.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
+              boxShadow: value
+                  ? [BoxShadow(
+                      color: Colors.green.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2))]
+                  : [],
+            ),
+            child: value
+                ? const Icon(Icons.check, color: Colors.white, size: 26)
+                : Icon(icon,
+                    color: scheme.primary.withValues(alpha: 0.5), size: 22),
+          ),
+          const SizedBox(height: 4),
+          Text(label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: value ? FontWeight.bold : FontWeight.normal,
+                color: value ? Colors.green : Colors.grey.shade700,
+              )),
         ],
       ),
     );
@@ -222,10 +486,7 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            scheme.primary,
-            scheme.primary.withValues(alpha: 0.75),
-          ],
+          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.75)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -234,23 +495,34 @@ class _SummaryCard extends StatelessWidget {
           BoxShadow(
             color: scheme.primary.withValues(alpha: 0.3),
             blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
+            offset: const Offset(0, 6)),
         ],
       ),
       child: Column(
         children: [
+          if (data.name.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.person, color: Colors.white, size: 18),
+                  const SizedBox(width: 6),
+                  Text(data.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
           Row(
             children: [
               Expanded(child: _stat(l.totalDays, '${data.totalDays}')),
-              Container(
-                  width: 1,
-                  height: 40,
+              Container(width: 1, height: 40,
                   color: Colors.white.withValues(alpha: 0.3)),
               Expanded(child: _stat(l.completed, '${data.totalCompleted}')),
-              Container(
-                  width: 1,
-                  height: 40,
+              Container(width: 1, height: 40,
                   color: Colors.white.withValues(alpha: 0.3)),
               Expanded(child: _stat(l.remaining, '${data.totalRemaining}')),
             ],
@@ -262,19 +534,15 @@ class _SummaryCard extends StatelessWidget {
               value: progress.clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: Colors.white.withValues(alpha: 0.25),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(Colors.white),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            '${l.progress}: ${(progress * 100).toStringAsFixed(1)}%',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.95),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text('${l.progress}: ${(progress * 100).toStringAsFixed(1)}%',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.95),
+                fontSize: 12,
+                fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -283,168 +551,16 @@ class _SummaryCard extends StatelessWidget {
   Widget _stat(String label, String value) {
     return Column(
       children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-              fontSize: 13, color: Colors.white.withValues(alpha: 0.9)),
-        ),
+        Text(value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white)),
+        Text(label,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.9))),
       ],
-    );
-  }
-}
-
-class _Table extends StatelessWidget {
-  final UserData data;
-  final AppLocalizations l;
-  final VoidCallback onLongPress;
-  final Future<void> Function(PrayerDay, int) onToggle;
-
-  const _Table({
-    required this.data,
-    required this.l,
-    required this.onLongPress,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (data.days.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              l.noDaysYet,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final scheme = Theme.of(context).colorScheme;
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.only(bottom: 90, left: 8, right: 8),
-      child: SingleChildScrollView(
-        child: DataTable(
-          columnSpacing: 6,
-          horizontalMargin: 10,
-          headingRowHeight: 46,
-          dataRowMinHeight: 46,
-          dataRowMaxHeight: 50,
-          headingRowColor: WidgetStatePropertyAll(
-            scheme.primary.withValues(alpha: 0.12),
-          ),
-          columns: [
-            DataColumn(
-                label: Text('#',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary))),
-            DataColumn(
-                label: Text(l.fajr,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary))),
-            DataColumn(
-                label: Text(l.dhuhr,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary))),
-            DataColumn(
-                label: Text(l.asr,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary))),
-            DataColumn(
-                label: Text(l.maghrib,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary))),
-            DataColumn(
-                label: Text(l.isha,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary))),
-          ],
-          rows: data.days.map((day) {
-            return DataRow(
-              color: WidgetStatePropertyAll(
-                day.isComplete
-                    ? Colors.green.withValues(alpha: 0.08)
-                    : null,
-              ),
-              cells: [
-                DataCell(
-                  InkWell(
-                    onLongPress: onLongPress,
-                    child: Text('${day.id}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                _cell(day, 0, context),
-                _cell(day, 1, context),
-                _cell(day, 2, context),
-                _cell(day, 3, context),
-                _cell(day, 4, context),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  DataCell _cell(PrayerDay day, int index, BuildContext context) {
-    bool value;
-    switch (index) {
-      case 0: value = day.fajr; break;
-      case 1: value = day.dhuhr; break;
-      case 2: value = day.asr; break;
-      case 3: value = day.maghrib; break;
-      default: value = day.isha;
-    }
-    final scheme = Theme.of(context).colorScheme;
-
-    return DataCell(
-      InkWell(
-        onTap: () => onToggle(day, index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: value
-                ? Colors.green
-                : scheme.primary.withValues(alpha: 0.08),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: value
-                  ? Colors.green
-                  : scheme.primary.withValues(alpha: 0.25),
-              width: 1.5,
-            ),
-          ),
-          child: value
-              ? const Icon(Icons.check, color: Colors.white, size: 20)
-              : null,
-        ),
-      ),
     );
   }
 }
