@@ -5,13 +5,26 @@ import 'theme.dart';
 import 'storage.dart';
 import 'providers/settings_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'services/supabase_service.dart';
 import 'login_screen.dart';
 import 'tracker_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة Supabase
+  try {
+    await SupabaseService.initialize();
+  } catch (e) {
+    // إذا فشل الاتصال، التطبيق يعمل offline
+    // ignore: avoid_print
+    print('Supabase init failed (offline mode): $e');
+  }
+
+  // تحميل الإعدادات
   final settings = SettingsProvider();
   await settings.load();
+
   runApp(
     ChangeNotifierProvider.value(
       value: settings,

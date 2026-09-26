@@ -16,6 +16,7 @@ class TrackerScreen extends StatefulWidget {
 class _TrackerScreenState extends State<TrackerScreen> {
   UserData? _data;
   bool _loading = true;
+  bool _syncing = false;
 
   @override
   void initState() {
@@ -34,7 +35,23 @@ class _TrackerScreenState extends State<TrackerScreen> {
 
   Future<void> _save() async {
     if (_data == null) return;
+    setState(() => _syncing = true);
     await Storage.saveUser(_data!);
+    if (!mounted) return;
+    setState(() => _syncing = false);
+  }
+
+  Future<void> _syncNow() async {
+    setState(() => _syncing = true);
+    final d = await Storage.loadUser(widget.userId);
+    if (!mounted) return;
+    setState(() {
+      _data = d;
+      _syncing = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('✅ تمت المزامنة مع السحابة')),
+    );
   }
 
   Future<void> _addDay() async {
@@ -131,6 +148,22 @@ class _TrackerScreenState extends State<TrackerScreen> {
       appBar: AppBar(
         title: Text(l.prayerTable),
         actions: [
+          if (_syncing)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'مزامنة',
+              icon: const Icon(Icons.cloud_sync),
+              onPressed: _syncNow,
+            ),
           IconButton(
             tooltip: l.reset,
             icon: const Icon(Icons.refresh),
@@ -147,18 +180,25 @@ class _TrackerScreenState extends State<TrackerScreen> {
       body: Column(
         children: [
           _SummaryCard(data: data, l: l),
-          Expanded(child: _Table(data: data, l: l, onLongPress: _removeLastDay, onToggle: (day, idx) async {
-            setState(() {
-              switch (idx) {
-                case 0: day.fajr = !day.fajr; break;
-                case 1: day.dhuhr = !day.dhuhr; break;
-                case 2: day.asr = !day.asr; break;
-                case 3: day.maghrib = !day.maghrib; break;
-                case 4: day.isha = !day.isha;
-              }
-            });
-            await _save();
-          })),
+          Expanded(
+            child: _Table(
+              data: data,
+              l: l,
+              onLongPress: _removeLastDay,
+              onToggle: (day, idx) async {
+                setState(() {
+                  switch (idx) {
+                    case 0: day.fajr = !day.fajr; break;
+                    case 1: day.dhuhr = !day.dhuhr; break;
+                    case 2: day.asr = !day.asr; break;
+                    case 3: day.maghrib = !day.maghrib; break;
+                    case 4: day.isha = !day.isha;
+                  }
+                });
+                await _save();
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -182,7 +222,10 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.75)],
+          colors: [
+            scheme.primary,
+            scheme.primary.withValues(alpha: 0.75),
+          ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -201,10 +244,14 @@ class _SummaryCard extends StatelessWidget {
             children: [
               Expanded(child: _stat(l.totalDays, '${data.totalDays}')),
               Container(
-                  width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+                  width: 1,
+                  height: 40,
+                  color: Colors.white.withValues(alpha: 0.3)),
               Expanded(child: _stat(l.completed, '${data.totalCompleted}')),
               Container(
-                  width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+                  width: 1,
+                  height: 40,
+                  color: Colors.white.withValues(alpha: 0.3)),
               Expanded(child: _stat(l.remaining, '${data.totalRemaining}')),
             ],
           ),

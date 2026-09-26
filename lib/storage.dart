@@ -1,21 +1,23 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
+import 'services/supabase_service.dart';
 
 class Storage {
   static const _currentUserKey = 'salatak_current_user';
 
-  /// حفظ المستخدم الحالي (يُستدعى بعد نجاح التحقق)
+  /// ==========================================
+  /// إدارة المستخدم الحالي (محلي فقط - سريع)
+  /// ==========================================
   static Future<bool> setCurrentUser(String id) async {
     try {
       final p = await SharedPreferences.getInstance();
       return await p.setString(_currentUserKey, id);
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  /// قراءة المستخدم الحالي
   static Future<String?> getCurrentUser() async {
     final p = await SharedPreferences.getInstance();
     final id = p.getString(_currentUserKey);
@@ -23,20 +25,56 @@ class Storage {
     return id;
   }
 
-  /// هل يوجد مستخدم مسجل؟
   static Future<bool> hasCurrentUser() async {
-    final id = await getCurrentUser();
-    return id != null;
+    return (await getCurrentUser()) != null;
   }
 
-  /// تسجيل الخروج
   static Future<void> logout() async {
     final p = await SharedPreferences.getInstance();
     await p.remove(_currentUserKey);
   }
 
-  /// تحميل بيانات مستخدم
+  /// ==========================================
+  /// البيانات: Supabase أولاً، ثم Cache محلي
+  /// ==========================================
+
+  /// تحميل بيانات المستخدم — يجرب Supabase، وإن فشل يستخدم Cache
   static Future<UserData> loadUser(String id) async {
+    // 1) حاول من Supabase
+    try {
+      final cloudData = await SupabaseService.loadUser(id);
+      if (cloudData != null) {
+        // حدّث الـ cache المحلي
+        await _saveLocal(cloudData);
+        return cloudData;
+      }
+    } catch (_) {
+      // تجاهل واستخدم الـ cache
+    }
+
+    // 2) fallback: اقرأ من Cache المحلي
+    return await _loadLocal(id);
+  }
+
+  /// حفظ بيانات المستخدم — Supabase + Cache محلي
+  static Future<bool> saveUser(UserData user) async {
+    // احفظ محلياً أولاً (سرعة + offline)
+    final localOk = await _saveLocal(user);
+
+    // ثم حاول الرفع للسحابة
+    try {
+      await SupabaseService.saveUser(user);
+    } catch (_) {
+      // offline mode: البيانات محفوظة محلياً على الأقل
+    }
+
+    return localOk;
+  }
+
+  /// ==========================================
+  /// Local Cache (SharedPreferences)
+  /// ==========================================
+  static Future<UserData> _loadLocal(String id) async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString('salatak_user_$id');
     if (raw == null) return UserData(identifier: id);
@@ -47,8 +85,7 @@ class Storage {
     }
   }
 
-  /// حفظ بيانات مستخدم
-  static Future<bool> saveUser(UserData user) async {
+  static Future<bool> _saveLocal(UserData user) async {
     try {
       final p = await SharedPreferences.getInstance();
       return await p.setString(
@@ -60,7 +97,9 @@ class Storage {
     }
   }
 
-  /// التحقق من صحة المدخل (بريد أو هاتف)
+  /// ==========================================
+  /// تحقق من صحة البريد أو الهاتف
+  /// ==========================================
   static String? validateIdentifier(String value) {
     final v = value.trim();
     if (v.isEmpty) return 'empty';

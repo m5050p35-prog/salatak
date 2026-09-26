@@ -51,6 +51,8 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     final value = _ctrl.text.trim();
+
+    // 1) احفظ المستخدم محلياً
     final ok = await Storage.setCurrentUser(value);
     if (!ok) {
       if (!mounted) return;
@@ -58,9 +60,14 @@ class _LoginScreenState extends State<LoginScreen>
       _showError('فشل الحفظ، حاول مرة أخرى');
       return;
     }
+
+    // 2) حمّل بياناته (يحاول Supabase، وإلا cache محلي)
     final data = await Storage.loadUser(value);
+
     if (!mounted) return;
     setState(() => _loading = false);
+
+    // 3) التوجيه المناسب
     if (data.days.isEmpty) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => DurationScreen(userId: value)),
@@ -177,8 +184,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   textInputAction: TextInputAction.done,
                                   onFieldSubmitted: (_) => _login(),
                                   validator: (v) {
-                                    final err =
-                                        Storage.validateIdentifier(v ?? '');
+                                    final err = Storage.validateIdentifier(v ?? '');
                                     if (err == 'empty') {
                                       return l.isArabic
                                           ? 'الرجاء إدخال البريد أو الهاتف'

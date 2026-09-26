@@ -225,7 +225,9 @@ class _OptionCard extends StatelessWidget {
               : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? scheme.primary : Colors.grey.withValues(alpha: 0.15),
+            color: selected
+                ? scheme.primary
+                : Colors.grey.withValues(alpha: 0.15),
             width: selected ? 2 : 1,
           ),
           boxShadow: selected
