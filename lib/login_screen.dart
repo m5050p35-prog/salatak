@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'storage.dart';
+import 'models.dart';
 import 'duration_screen.dart';
 import 'tracker_screen.dart';
 import 'l10n/app_localizations.dart';
