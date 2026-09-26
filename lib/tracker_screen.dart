@@ -3,6 +3,8 @@ import 'storage.dart';
 import 'login_screen.dart';
 import 'models.dart';
 import 'duration_screen.dart';
+import 'l10n/app_localizations.dart';
+import 'widgets/app_drawer.dart';
 
 class TrackerScreen extends StatefulWidget {
   final String userId;
@@ -23,6 +25,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
 
   Future<void> _load() async {
     final d = await Storage.loadUser(widget.userId);
+    if (!mounted) return;
     setState(() {
       _data = d;
       _loading = false;
@@ -52,20 +55,21 @@ class _TrackerScreenState extends State<TrackerScreen> {
 
   Future<void> _removeLastDay() async {
     if (_data == null || _data!.days.isEmpty) return;
+    final l = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('حذف آخر يوم؟'),
-        content: const Text('سيتم حذف آخر صف نهائياً.'),
+        title: Text(l.deleteLastDay),
+        content: Text(l.deleteLastDayNote),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(l.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('حذف'),
+            child: Text(l.delete),
           ),
         ],
       ),
@@ -84,21 +88,22 @@ class _TrackerScreenState extends State<TrackerScreen> {
     );
   }
 
-  Future<void> _resetDays() async {
+  Future<void> _reset() async {
+    final l = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('إعادة تعيين الجدول؟'),
-        content: const Text('سيتم حذف جميع الأيام والبدء من جديد.'),
+        title: Text(l.resetTable),
+        content: Text(l.resetTableNote),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(l.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('إعادة تعيين'),
+            child: Text(l.reset),
           ),
         ],
       ),
@@ -108,7 +113,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => DurationScreen(userId: widget.userId)),
+            builder: (_) => DurationScreen(userId: widget.userId)),
       );
     }
   }
@@ -120,48 +125,109 @@ class _TrackerScreenState extends State<TrackerScreen> {
           body: Center(child: CircularProgressIndicator()));
     }
     final data = _data!;
+    final l = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('جدول قضاء الصلاة'),
-        centerTitle: true,
+        title: Text(l.prayerTable),
         actions: [
           IconButton(
+            tooltip: l.reset,
             icon: const Icon(Icons.refresh),
-            onPressed: _resetDays,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
+            onPressed: _reset,
           ),
         ],
       ),
+      drawer: AppDrawer(onLogout: _logout, onReset: _reset),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addDay,
         icon: const Icon(Icons.add),
-        label: const Text('إضافة يوم'),
+        label: Text(l.addDay),
       ),
       body: Column(
         children: [
-          _buildSummary(data),
-          Expanded(child: _buildTable(data)),
+          _SummaryCard(data: data, l: l),
+          Expanded(child: _Table(data: data, l: l, onLongPress: _removeLastDay, onToggle: (day, idx) async {
+            setState(() {
+              switch (idx) {
+                case 0: day.fajr = !day.fajr; break;
+                case 1: day.dhuhr = !day.dhuhr; break;
+                case 2: day.asr = !day.asr; break;
+                case 3: day.maghrib = !day.maghrib; break;
+                case 4: day.isha = !day.isha;
+              }
+            });
+            await _save();
+          })),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSummary(UserData data) {
+class _SummaryCard extends StatelessWidget {
+  final UserData data;
+  final AppLocalizations l;
+  const _SummaryCard({required this.data, required this.l});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final progress = data.totalDays == 0
+        ? 0.0
+        : data.totalCompleted / (data.totalDays * 5);
+
     return Container(
-      padding: const EdgeInsets.all(14),
       margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.75)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: 0.3),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(child: _stat('الأيام', '${data.totalDays}')),
-          Expanded(child: _stat('قضيت', '${data.totalCompleted}')),
-          Expanded(child: _stat('المتبقي', '${data.totalRemaining}')),
+          Row(
+            children: [
+              Expanded(child: _stat(l.totalDays, '${data.totalDays}')),
+              Container(
+                  width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+              Expanded(child: _stat(l.completed, '${data.totalCompleted}')),
+              Container(
+                  width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+              Expanded(child: _stat(l.remaining, '${data.totalRemaining}')),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor: Colors.white.withValues(alpha: 0.25),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${l.progress}: ${(progress * 100).toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -170,56 +236,125 @@ class _TrackerScreenState extends State<TrackerScreen> {
   Widget _stat(String label, String value) {
     return Column(
       children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.bold)),
-        Text(label,
-            style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+              fontSize: 13, color: Colors.white.withValues(alpha: 0.9)),
+        ),
       ],
     );
   }
+}
 
-  Widget _buildTable(UserData data) {
+class _Table extends StatelessWidget {
+  final UserData data;
+  final AppLocalizations l;
+  final VoidCallback onLongPress;
+  final Future<void> Function(PrayerDay, int) onToggle;
+
+  const _Table({
+    required this.data,
+    required this.l,
+    required this.onLongPress,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     if (data.days.isEmpty) {
-      return const Center(
-        child: Text('لا توجد أيام بعد.\nاضغط "إضافة يوم" للبدء.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.grey)),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.calendar_today_outlined,
+                size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text(
+              l.noDaysYet,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
       );
     }
+
+    final scheme = Theme.of(context).colorScheme;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.only(bottom: 90, left: 8, right: 8),
       child: SingleChildScrollView(
         child: DataTable(
-          columnSpacing: 8,
-          horizontalMargin: 12,
+          columnSpacing: 6,
+          horizontalMargin: 10,
+          headingRowHeight: 46,
+          dataRowMinHeight: 46,
+          dataRowMaxHeight: 50,
           headingRowColor: WidgetStatePropertyAll(
-            Theme.of(context).colorScheme.primaryContainer,
+            scheme.primary.withValues(alpha: 0.12),
           ),
-          columns: const [
-            DataColumn(label: Text('#')),
-            DataColumn(label: Text('الفجر')),
-            DataColumn(label: Text('الظهر')),
-            DataColumn(label: Text('العصر')),
-            DataColumn(label: Text('المغرب')),
-            DataColumn(label: Text('العشاء')),
+          columns: [
+            DataColumn(
+                label: Text('#',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary))),
+            DataColumn(
+                label: Text(l.fajr,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary))),
+            DataColumn(
+                label: Text(l.dhuhr,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary))),
+            DataColumn(
+                label: Text(l.asr,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary))),
+            DataColumn(
+                label: Text(l.maghrib,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary))),
+            DataColumn(
+                label: Text(l.isha,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary))),
           ],
           rows: data.days.map((day) {
             return DataRow(
               color: WidgetStatePropertyAll(
-                  day.isComplete ? Colors.green.shade50 : null),
+                day.isComplete
+                    ? Colors.green.withValues(alpha: 0.08)
+                    : null,
+              ),
               cells: [
-                DataCell(InkWell(
-                  onLongPress: _removeLastDay,
-                  child: Text('${day.id}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold)),
-                )),
-                _cell(day, 0),
-                _cell(day, 1),
-                _cell(day, 2),
-                _cell(day, 3),
-                _cell(day, 4),
+                DataCell(
+                  InkWell(
+                    onLongPress: onLongPress,
+                    child: Text('${day.id}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                _cell(day, 0, context),
+                _cell(day, 1, context),
+                _cell(day, 2, context),
+                _cell(day, 3, context),
+                _cell(day, 4, context),
               ],
             );
           }).toList(),
@@ -228,7 +363,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
     );
   }
 
-  DataCell _cell(PrayerDay day, int index) {
+  DataCell _cell(PrayerDay day, int index, BuildContext context) {
     bool value;
     switch (index) {
       case 0: value = day.fajr; break;
@@ -237,27 +372,26 @@ class _TrackerScreenState extends State<TrackerScreen> {
       case 3: value = day.maghrib; break;
       default: value = day.isha;
     }
+    final scheme = Theme.of(context).colorScheme;
+
     return DataCell(
       InkWell(
-        onTap: () async {
-          setState(() {
-            switch (index) {
-              case 0: day.fajr = !day.fajr; break;
-              case 1: day.dhuhr = !day.dhuhr; break;
-              case 2: day.asr = !day.asr; break;
-              case 3: day.maghrib = !day.maghrib; break;
-              case 4: day.isha = !day.isha;
-            }
-          });
-          await _save();
-        },
-        child: Container(
-          width: 34, height: 34,
+        onTap: () => onToggle(day, index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
             color: value
                 ? Colors.green
-                : Colors.grey.withOpacity(0.12),
+                : scheme.primary.withValues(alpha: 0.08),
             shape: BoxShape.circle,
+            border: Border.all(
+              color: value
+                  ? Colors.green
+                  : scheme.primary.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
           ),
           child: value
               ? const Icon(Icons.check, color: Colors.white, size: 20)

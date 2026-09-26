@@ -1,24 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
+import 'theme.dart';
 import 'storage.dart';
+import 'providers/settings_provider.dart';
+import 'l10n/app_localizations.dart';
 import 'login_screen.dart';
 import 'tracker_screen.dart';
 
-void main() => runApp(const SalatakApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final settings = SettingsProvider();
+  await settings.load();
+  runApp(
+    ChangeNotifierProvider.value(
+      value: settings,
+      child: const SalatakApp(),
+    ),
+  );
+}
 
 class SalatakApp extends StatelessWidget {
   const SalatakApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     return MaterialApp(
-      title: 'صلاتك',
+      title: 'Salatak',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF0E7C66),
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: settings.themeMode,
+      locale: settings.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       builder: (context, child) => Directionality(
-        textDirection: TextDirection.rtl,
+        textDirection: settings.locale.languageCode == 'ar'
+            ? TextDirection.rtl
+            : TextDirection.ltr,
         child: child ?? const SizedBox.shrink(),
       ),
       home: const SplashGate(),
@@ -44,6 +69,7 @@ class _SplashGateState extends State<SplashGate> {
 
   Future<void> _init() async {
     final u = await Storage.getCurrentUser();
+    if (!mounted) return;
     setState(() {
       _user = u;
       _loading = false;
