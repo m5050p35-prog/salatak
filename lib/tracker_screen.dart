@@ -3,6 +3,7 @@ import 'storage.dart';
 import 'login_screen.dart';
 import 'models.dart';
 import 'duration_screen.dart';
+import 'profile_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'widgets/app_drawer.dart';
 
@@ -17,6 +18,8 @@ class _TrackerScreenState extends State<TrackerScreen> {
   UserData? _data;
   bool _loading = true;
   bool _syncing = false;
+  bool _scrolledOnce = false;
+  final Map<int, GlobalKey> _dayKeys = {};
 
   @override
   void initState() {
@@ -31,6 +34,33 @@ class _TrackerScreenState extends State<TrackerScreen> {
       _data = d;
       _loading = false;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToLastCompleted();
+    });
+  }
+
+  void _scrollToLastCompleted() {
+    if (_scrolledOnce || _data == null || _data!.days.isEmpty) return;
+    _scrolledOnce = true;
+
+    int lastIdx = -1;
+    for (int i = _data!.days.length - 1; i >= 0; i--) {
+      if (_data!.days[i].isComplete) {
+        lastIdx = i;
+        break;
+      }
+    }
+    if (lastIdx < 0) return;
+    final dayId = _data!.days[lastIdx].id;
+    final key = _dayKeys[dayId];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOut,
+        alignment: 0.15,
+      );
+    }
   }
 
   Future<void> _save() async {
@@ -50,7 +80,8 @@ class _TrackerScreenState extends State<TrackerScreen> {
       _syncing = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ تمت المزامنة')));
+      const SnackBar(content: Text('✅ تمت المزامنة')),
+    );
   }
 
   Future<void> _addDay() async {
@@ -75,10 +106,8 @@ class _TrackerScreenState extends State<TrackerScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(l.isArabic ? 'حذف اليوم؟' : 'Delete day?'),
-        content: Text(l.isArabic
-            ? 'سيتم حذف هذا اليوم نهائياً.'
-            : 'This day will be permanently deleted.'),
+        title: Text(l.deleteDay),
+        content: Text(l.deleteDayNote),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -93,7 +122,6 @@ class _TrackerScreenState extends State<TrackerScreen> {
     if (ok == true) {
       setState(() {
         _data!.days.removeAt(index);
-        // إعادة ترقيم الأيام
         for (int i = 0; i < _data!.days.length; i++) {
           final d = _data!.days[i];
           _data!.days[i] = PrayerDay(
@@ -112,7 +140,8 @@ class _TrackerScreenState extends State<TrackerScreen> {
     await Storage.logout();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()));
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
   Future<void> _reset() async {
@@ -142,8 +171,16 @@ class _TrackerScreenState extends State<TrackerScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-            builder: (_) => DurationScreen(userId: widget.userId)));
+            builder: (_) => DurationScreen(userId: widget.userId)),
+      );
     }
+  }
+
+  void _openProfile() {
+    if (_data == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ProfileScreen(data: _data!)),
+    );
   }
 
   @override
@@ -165,17 +202,24 @@ class _TrackerScreenState extends State<TrackerScreen> {
               child: SizedBox(
                 width: 20, height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white)))
+                    strokeWidth: 2, color: Colors.white)),
+            )
           else
             IconButton(
               icon: const Icon(Icons.cloud_sync),
-              onPressed: _syncNow),
+              onPressed: _syncNow,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _reset),
+            onPressed: _reset,
+          ),
         ],
       ),
-      drawer: AppDrawer(onLogout: _logout, onReset: _reset),
+      drawer: AppDrawer(
+        onLogout: _logout,
+        onReset: _reset,
+        onProfile: _openProfile,
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addDay,
         icon: const Icon(Icons.add),
@@ -191,24 +235,41 @@ class _TrackerScreenState extends State<TrackerScreen> {
                     padding: const EdgeInsets.only(
                         left: 12, right: 12, bottom: 100, top: 4),
                     itemCount: data.days.length,
-                    itemBuilder: (_, i) => _DayCard(
-                      day: data.days[i],
-                      l: l,
-                      onTap: (idx) async {
-                        setState(() {
-                          final d = data.days[i];
-                          switch (idx) {
-                            case 0: d.fajr = !d.fajr; break;
-                            case 1: d.dhuhr = !d.dhuhr; break;
-                            case 2: d.asr = !d.asr; break;
-                            case 3: d.maghrib = !d.maghrib; break;
-                            case 4: d.isha = !d.isha;
-                          }
-                        });
-                        await _save();
-                      },
-                      onDelete: () => _removeDay(i),
-                    ),
+                    itemBuilder: (_, i) {
+                      final day = data.days[i];
+                      _dayKeys.putIfAbsent(day.id, () => GlobalKey());
+                      return _DayCard(
+                        key: _dayKeys[day.id],
+                        day: day,
+                        l: l,
+                        onTap: (idx) async {
+                          setState(() {
+                            final d = data.days[i];
+                            switch (idx) {
+                              case 0: d.fajr = !d.fajr; break;
+                              case 1: d.dhuhr = !d.dhuhr; break;
+                              case 2: d.asr = !d.asr; break;
+                              case 3: d.maghrib = !d.maghrib; break;
+                              case 4: d.isha = !d.isha;
+                            }
+                          });
+                          await _save();
+                        },
+                        onToggleComplete: () async {
+                          setState(() {
+                            final d = data.days[i];
+                            final newVal = !d.isComplete;
+                            d.fajr = newVal;
+                            d.dhuhr = newVal;
+                            d.asr = newVal;
+                            d.maghrib = newVal;
+                            d.isha = newVal;
+                          });
+                          await _save();
+                        },
+                        onDelete: () => _removeDay(i),
+                      );
+                    },
                   ),
           ),
         ],
@@ -238,17 +299,19 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// بطاقة كل يوم
 class _DayCard extends StatelessWidget {
   final PrayerDay day;
   final AppLocalizations l;
   final Future<void> Function(int) onTap;
+  final VoidCallback onToggleComplete;
   final VoidCallback onDelete;
 
   const _DayCard({
+    super.key,
     required this.day,
     required this.l,
     required this.onTap,
+    required this.onToggleComplete,
     required this.onDelete,
   });
 
@@ -297,7 +360,7 @@ class _DayCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // العنوان + الحذف
+            // العنوان + زر الاكتمال + حذف
             Row(
               children: [
                 Container(
@@ -326,42 +389,68 @@ class _DayCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isComplete)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.verified,
-                            color: Colors.white, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          l.isArabic ? 'اكتمل' : 'Complete',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
+
+                // زر اكتمل / إلغاء
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onToggleComplete,
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isComplete
+                            ? Colors.green
+                            : scheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isComplete
+                              ? Colors.green
+                              : scheme.primary.withValues(alpha: 0.4),
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isComplete
+                                ? Icons.verified
+                                : Icons.check_circle_outline,
+                            size: 16,
+                            color: isComplete
+                                ? Colors.white
+                                : scheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isComplete ? l.dayComplete : l.completeDay,
+                            style: TextStyle(
+                              color: isComplete
+                                  ? Colors.white
+                                  : scheme.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                ),
                 IconButton(
                   onPressed: onDelete,
                   icon: Icon(Icons.close,
                       size: 18, color: Colors.grey.shade500),
                   visualDensity: VisualDensity.compact,
-                  tooltip: l.isArabic ? 'حذف' : 'Delete',
+                  tooltip: l.delete,
                 ),
               ],
             ),
             const SizedBox(height: 10),
 
-            // الصلوات الخمس
+            // الصلوات
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(5, (i) {
@@ -374,7 +463,6 @@ class _DayCard extends StatelessWidget {
               }),
             ),
 
-            // مؤشر إكمال اليوم
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
@@ -393,7 +481,8 @@ class _DayCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 color: isComplete ? Colors.green : Colors.grey,
-                fontWeight: isComplete ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    isComplete ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ],
@@ -445,22 +534,27 @@ class _PrayerCircle extends StatelessWidget {
                 width: 1.5,
               ),
               boxShadow: value
-                  ? [BoxShadow(
-                      color: Colors.green.withValues(alpha: 0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2))]
+                  ? [
+                      BoxShadow(
+                        color: Colors.green.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      )
+                    ]
                   : [],
             ),
             child: value
                 ? const Icon(Icons.check, color: Colors.white, size: 26)
                 : Icon(icon,
-                    color: scheme.primary.withValues(alpha: 0.5), size: 22),
+                    color: scheme.primary.withValues(alpha: 0.5),
+                    size: 22),
           ),
           const SizedBox(height: 4),
           Text(label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: value ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    value ? FontWeight.bold : FontWeight.normal,
                 color: value ? Colors.green : Colors.grey.shade700,
               )),
         ],
@@ -486,7 +580,10 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [scheme.primary, scheme.primary.withValues(alpha: 0.75)],
+          colors: [
+            scheme.primary,
+            scheme.primary.withValues(alpha: 0.75),
+          ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -495,7 +592,8 @@ class _SummaryCard extends StatelessWidget {
           BoxShadow(
             color: scheme.primary.withValues(alpha: 0.3),
             blurRadius: 14,
-            offset: const Offset(0, 6)),
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
@@ -512,19 +610,26 @@ class _SummaryCard extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
-                        fontWeight: FontWeight.w600)),
+                        fontWeight: FontWeight.w600,
+                      )),
                 ],
               ),
             ),
           Row(
             children: [
               Expanded(child: _stat(l.totalDays, '${data.totalDays}')),
-              Container(width: 1, height: 40,
+              Container(
+                  width: 1,
+                  height: 40,
                   color: Colors.white.withValues(alpha: 0.3)),
-              Expanded(child: _stat(l.completed, '${data.totalCompleted}')),
-              Container(width: 1, height: 40,
+              Expanded(
+                  child: _stat(l.completed, '${data.totalCompleted}')),
+              Container(
+                  width: 1,
+                  height: 40,
                   color: Colors.white.withValues(alpha: 0.3)),
-              Expanded(child: _stat(l.remaining, '${data.totalRemaining}')),
+              Expanded(
+                  child: _stat(l.remaining, '${data.totalRemaining}')),
             ],
           ),
           const SizedBox(height: 14),
@@ -534,7 +639,8 @@ class _SummaryCard extends StatelessWidget {
               value: progress.clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: Colors.white.withValues(alpha: 0.25),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
           const SizedBox(height: 6),
@@ -542,7 +648,8 @@ class _SummaryCard extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.95),
                 fontSize: 12,
-                fontWeight: FontWeight.w500)),
+                fontWeight: FontWeight.w500,
+              )),
         ],
       ),
     );
@@ -555,11 +662,13 @@ class _SummaryCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.white)),
+              color: Colors.white,
+            )),
         Text(label,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.9))),
+              color: Colors.white.withValues(alpha: 0.9),
+            )),
       ],
     );
   }

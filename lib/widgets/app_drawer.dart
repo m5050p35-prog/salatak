@@ -6,11 +6,13 @@ import '../l10n/app_localizations.dart';
 class AppDrawer extends StatelessWidget {
   final VoidCallback onLogout;
   final VoidCallback onReset;
+  final VoidCallback onProfile;
 
   const AppDrawer({
     super.key,
     required this.onLogout,
     required this.onReset,
+    required this.onProfile,
   });
 
   @override
@@ -23,7 +25,6 @@ class AppDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -71,7 +72,19 @@ class AppDrawer extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // Dark Mode
+            // الملف الشخصي
+            ListTile(
+              leading: Icon(Icons.person_outline, color: scheme.primary),
+              title: Text(l.profile),
+              onTap: () {
+                Navigator.pop(context);
+                onProfile();
+              },
+            ),
+
+            const Divider(),
+
+            // الوضع الليلي
             SwitchListTile(
               value: settings.isDark,
               onChanged: (v) => settings.toggleTheme(v),
@@ -85,9 +98,10 @@ class AppDrawer extends StatelessWidget {
 
             const Divider(),
 
-            // Language
+            // اللغة
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   Icon(Icons.language, color: scheme.primary),
@@ -96,8 +110,6 @@ class AppDrawer extends StatelessWidget {
                 ],
               ),
             ),
-
-            // RadioGroup الجديد
             RadioGroup<String>(
               groupValue: settings.locale.languageCode,
               onChanged: (v) {
@@ -123,7 +135,6 @@ class AppDrawer extends StatelessWidget {
 
             const Divider(),
 
-            // Reset
             ListTile(
               leading: Icon(Icons.refresh, color: scheme.primary),
               title: Text(l.reset),
@@ -132,12 +143,10 @@ class AppDrawer extends StatelessWidget {
                 onReset();
               },
             ),
-
-            // About
             ListTile(
               leading: Icon(Icons.info_outline, color: scheme.primary),
               title: Text(l.about),
-              subtitle: Text('${l.version} 2.0.0'),
+              subtitle: Text('${l.version} 3.0.0'),
               onTap: () {
                 Navigator.pop(context);
                 _showAbout(context, l);
@@ -146,8 +155,6 @@ class AppDrawer extends StatelessWidget {
 
             const Spacer(),
             const Divider(),
-
-            // Logout
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: Text(l.logout,
@@ -168,7 +175,7 @@ class AppDrawer extends StatelessWidget {
     showAboutDialog(
       context: context,
       applicationName: l.appName,
-      applicationVersion: '2.0.0',
+      applicationVersion: '3.0.0',
       applicationIcon: const Icon(Icons.mosque, size: 40),
       children: [Text(l.aboutText)],
     );

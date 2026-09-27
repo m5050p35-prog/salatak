@@ -63,6 +63,10 @@ class AppLocalizations {
       ? 'سيتم حذف آخر صف نهائياً.'
       : 'The last row will be permanently deleted.';
   String get delete => isArabic ? 'حذف' : 'Delete';
+  String get deleteDay => isArabic ? 'حذف اليوم؟' : 'Delete day?';
+  String get deleteDayNote => isArabic
+      ? 'سيتم حذف هذا اليوم نهائياً.'
+      : 'This day will be permanently deleted.';
   String get resetTable => isArabic ? 'إعادة تعيين الجدول؟' : 'Reset table?';
   String get resetTableNote => isArabic
       ? 'سيتم حذف جميع الأيام والبدء من جديد.'
@@ -80,6 +84,15 @@ class AppLocalizations {
       ? 'تطبيق صلاتك يساعدك على متابعة قضاء الصلوات الفائتة.'
       : 'Salatak helps you track missed prayers.';
   String get progress => isArabic ? 'التقدم' : 'Progress';
+  String get completeDay => isArabic ? 'اكتمل اليوم' : 'Complete day';
+  String get uncompleteDay => isArabic ? 'إلغاء الاكتمال' : 'Uncomplete';
+  String get dayComplete => isArabic ? 'اكتمل' : 'Complete';
+  String get profile => isArabic ? 'الملف الشخصي' : 'Profile';
+  String get userName => isArabic ? 'الاسم' : 'Name';
+  String get userEmail => isArabic ? 'البريد الإلكتروني' : 'Email';
+  String get memberSince => isArabic ? 'عضو منذ' : 'Member since';
+  String get stats => isArabic ? 'الإحصائيات' : 'Statistics';
+  String get currentStreak => isArabic ? 'الأيام المكتملة' : 'Complete days';
 }
 
 class _AppLocalizationsDelegate
