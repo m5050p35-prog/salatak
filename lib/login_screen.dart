@@ -114,7 +114,6 @@ class _LoginScreenState extends State<LoginScreen>
     final l = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.of(context).size;
-    final isAr = l.isArabic;
 
     return Scaffold(
       body: Container(
@@ -142,7 +141,8 @@ class _LoginScreenState extends State<LoginScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 120, height: 120,
+                        width: 120,
+                        height: 120,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -150,29 +150,40 @@ class _LoginScreenState extends State<LoginScreen>
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
                               blurRadius: 24,
-                              offset: const Offset(0, 8)),
+                              offset: const Offset(0, 8),
+                            ),
                           ],
                         ),
-                        child: Icon(Icons.mosque, size: 66,
-                            color: scheme.primary),
+                        child: Icon(
+                          Icons.mosque,
+                          size: 66,
+                          color: scheme.primary,
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      Text(l.appName,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.2)),
+                      Text(
+                        l.appName,
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text(l.appSubtitle,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.95))),
+                      Text(
+                        l.appSubtitle,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.95),
+                        ),
+                      ),
                       SizedBox(height: size.height * 0.05),
                       Card(
                         elevation: 8,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(22),
                           child: Form(
@@ -180,10 +191,13 @@ class _LoginScreenState extends State<LoginScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Text(l.emailLabel,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600)),
+                                Text(
+                                  l.emailLabel,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _emailCtrl,
@@ -192,7 +206,9 @@ class _LoginScreenState extends State<LoginScreen>
                                   onFieldSubmitted: (_) => _login(),
                                   validator: (v) {
                                     final err = Storage.validateGmail(v ?? '');
-                                    if (err == 'empty') return l.emailRequired;
+                                    if (err == 'empty') {
+                                      return l.emailRequired;
+                                    }
                                     if (err == 'not_gmail') {
                                       return l.emailGmailOnly;
                                     }
@@ -213,14 +229,21 @@ class _LoginScreenState extends State<LoginScreen>
                                     onPressed: _loading ? null : _login,
                                     child: _loading
                                         ? const SizedBox(
-                                            width: 24, height: 24,
-                                            child: CircularProgressIndicator(
+                                            width: 24,
+                                            height: 24,
+                                            child:
+                                                CircularProgressIndicator(
                                               strokeWidth: 2.5,
-                                              color: Colors.white))
-                                        : Text(l.login,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                            l.login,
                                             style: const TextStyle(
                                               fontSize: 18,
-                                              fontWeight: FontWeight.bold)),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                   ),
                                 ),
                                 const SizedBox(height: 14),
@@ -230,9 +253,11 @@ class _LoginScreenState extends State<LoginScreen>
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 12),
-                                      child: Text(l.or,
-                                          style: TextStyle(
-                                            color: Colors.grey.shade500)),
+                                      child: Text(
+                                        l.or,
+                                        style: TextStyle(
+                                            color: Colors.grey.shade500),
+                                      ),
                                     ),
                                     const Expanded(child: Divider()),
                                   ],
@@ -247,11 +272,15 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                     );
                                   },
-                                  icon: const Icon(Icons.person_add_alt_1),
-                                  label: Text(l.goToSignup,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600)),
+                                  icon:
+                                      const Icon(Icons.person_add_alt_1),
+                                  label: Text(
+                                    l.goToSignup,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -259,11 +288,14 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Text(l.noPasswordNote,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.85))),
+                      Text(
+                        l.noPasswordNote,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
                     ],
                   ),
                 ),

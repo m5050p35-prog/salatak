@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'storage.dart';
 import 'models.dart';
 import 'duration_screen.dart';
-import 'tracker_screen.dart';
 import 'l10n/app_localizations.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -40,7 +39,6 @@ class _SignupScreenState extends State<SignupScreen> {
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
 
-    // تحقق من عدم وجود الحساب
     final exists = await Storage.userExists(email);
     if (!mounted) return;
     if (exists) {
@@ -49,7 +47,6 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // أنشئ الحساب
     final data = UserData(identifier: email, name: name);
     await Storage.setCurrentUser(email);
     await Storage.saveUser(data);
@@ -58,8 +55,7 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _loading = false);
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-          builder: (_) => DurationScreen(userId: email)),
+      MaterialPageRoute(builder: (_) => DurationScreen(userId: email)),
     );
   }
 
@@ -87,7 +83,6 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final isAr = l.isArabic;
 
     return Scaffold(
       body: Container(
@@ -111,24 +106,33 @@ class _SignupScreenState extends State<SignupScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 100, height: 100,
+                    width: 100,
+                    height: 100,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      shape: BoxShape.circle),
-                    child: Icon(Icons.person_add_alt_1,
-                        size: 54, color: scheme.primary),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_add_alt_1,
+                      size: 54,
+                      color: scheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 18),
-                  Text(l.signupTitle,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
+                  Text(
+                    l.signupTitle,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Card(
                     elevation: 8,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(22),
                       child: Form(
@@ -136,10 +140,13 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(l.nameLabel,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600)),
+                            Text(
+                              l.nameLabel,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             TextFormField(
                               controller: _nameCtrl,
@@ -152,14 +159,18 @@ class _SignupScreenState extends State<SignupScreen> {
                               },
                               decoration: InputDecoration(
                                 hintText: l.nameHint,
-                                prefixIcon: const Icon(Icons.person_outline),
+                                prefixIcon:
+                                    const Icon(Icons.person_outline),
                               ),
                             ),
                             const SizedBox(height: 16),
-                            Text(l.emailLabel,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600)),
+                            Text(
+                              l.emailLabel,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             TextFormField(
                               controller: _emailCtrl,
@@ -169,8 +180,12 @@ class _SignupScreenState extends State<SignupScreen> {
                               validator: (v) {
                                 final err = Storage.validateGmail(v ?? '');
                                 if (err == 'empty') return l.emailRequired;
-                                if (err == 'not_gmail') return l.emailGmailOnly;
-                                if (err == 'invalid') return l.emailInvalid;
+                                if (err == 'not_gmail') {
+                                  return l.emailGmailOnly;
+                                }
+                                if (err == 'invalid') {
+                                  return l.emailInvalid;
+                                }
                                 return null;
                               },
                               decoration: const InputDecoration(
@@ -185,14 +200,20 @@ class _SignupScreenState extends State<SignupScreen> {
                                 onPressed: _loading ? null : _signup,
                                 child: _loading
                                     ? const SizedBox(
-                                        width: 24, height: 24,
+                                        width: 24,
+                                        height: 24,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.5,
-                                          color: Colors.white))
-                                    : Text(l.signup,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        l.signup,
                                         style: const TextStyle(
                                           fontSize: 18,
-                                          fontWeight: FontWeight.bold)),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -202,9 +223,11 @@ class _SignupScreenState extends State<SignupScreen> {
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12),
-                                  child: Text(l.or,
-                                      style: TextStyle(
-                                        color: Colors.grey.shade500)),
+                                  child: Text(
+                                    l.or,
+                                    style: TextStyle(
+                                        color: Colors.grey.shade500),
+                                  ),
                                 ),
                                 const Expanded(child: Divider()),
                               ],
@@ -213,10 +236,13 @@ class _SignupScreenState extends State<SignupScreen> {
                             TextButton.icon(
                               onPressed: () => Navigator.pop(context),
                               icon: const Icon(Icons.login),
-                              label: Text(l.goToLogin,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600)),
+                              label: Text(
+                                l.goToLogin,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -224,11 +250,14 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(l.noPasswordNote,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.85))),
+                  Text(
+                    l.noPasswordNote,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
                 ],
               ),
             ),

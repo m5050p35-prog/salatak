@@ -39,8 +39,10 @@ class _TrackerScreenState extends State<TrackerScreen> {
     });
   }
 
-  void _scrollToLastCompleted() {
-    if (_scrolledOnce || _data == null || _data!.days.isEmpty) return;
+  /// التمرير التلقائي لآخر يوم مكتمل
+  void _scrollToLastCompleted({bool force = false}) {
+    if (!force && _scrolledOnce) return;
+    if (_data == null || _data!.days.isEmpty) return;
     _scrolledOnce = true;
 
     int lastIdx = -1;
@@ -51,6 +53,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
       }
     }
     if (lastIdx < 0) return;
+
     final dayId = _data!.days[lastIdx].id;
     final key = _dayKeys[dayId];
     if (key?.currentContext != null) {
@@ -61,6 +64,17 @@ class _TrackerScreenState extends State<TrackerScreen> {
         alignment: 0.15,
       );
     }
+  }
+
+  /// تأخير التمرير قليلاً بعد اكتمال اليوم لضمان اكتمال إعادة البناء
+  void _scrollAfterComplete() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          _scrollToLastCompleted(force: true);
+        }
+      });
+    });
   }
 
   Future<void> _save() async {
@@ -127,8 +141,11 @@ class _TrackerScreenState extends State<TrackerScreen> {
           _data!.days[i] = PrayerDay(
             id: i + 1,
             date: d.date,
-            fajr: d.fajr, dhuhr: d.dhuhr, asr: d.asr,
-            maghrib: d.maghrib, isha: d.isha,
+            fajr: d.fajr,
+            dhuhr: d.dhuhr,
+            asr: d.asr,
+            maghrib: d.maghrib,
+            isha: d.isha,
           );
         }
       });
@@ -200,9 +217,11 @@ class _TrackerScreenState extends State<TrackerScreen> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: SizedBox(
-                width: 20, height: 20,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white)),
+                    strokeWidth: 2, color: Colors.white),
+              ),
             )
           else
             IconButton(
@@ -246,14 +265,27 @@ class _TrackerScreenState extends State<TrackerScreen> {
                           setState(() {
                             final d = data.days[i];
                             switch (idx) {
-                              case 0: d.fajr = !d.fajr; break;
-                              case 1: d.dhuhr = !d.dhuhr; break;
-                              case 2: d.asr = !d.asr; break;
-                              case 3: d.maghrib = !d.maghrib; break;
-                              case 4: d.isha = !d.isha;
+                              case 0:
+                                d.fajr = !d.fajr;
+                                break;
+                              case 1:
+                                d.dhuhr = !d.dhuhr;
+                                break;
+                              case 2:
+                                d.asr = !d.asr;
+                                break;
+                              case 3:
+                                d.maghrib = !d.maghrib;
+                                break;
+                              case 4:
+                                d.isha = !d.isha;
                             }
                           });
                           await _save();
+                          // إذا أصبح اليوم مكتملاً → مرر إليه
+                          if (data.days[i].isComplete) {
+                            _scrollAfterComplete();
+                          }
                         },
                         onToggleComplete: () async {
                           setState(() {
@@ -266,6 +298,10 @@ class _TrackerScreenState extends State<TrackerScreen> {
                             d.isha = newVal;
                           });
                           await _save();
+                          // بعد الاكتمال → مرر لآخر يوم مكتمل
+                          if (data.days[i].isComplete) {
+                            _scrollAfterComplete();
+                          }
                         },
                         onDelete: () => _removeDay(i),
                       );
@@ -360,7 +396,6 @@ class _DayCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // العنوان + زر الاكتمال + حذف
             Row(
               children: [
                 Container(
@@ -389,8 +424,6 @@ class _DayCard extends StatelessWidget {
                     ),
                   ),
                 ),
-
-                // زر اكتمل / إلغاء
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -449,8 +482,6 @@ class _DayCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-
-            // الصلوات
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(5, (i) {
@@ -462,7 +493,6 @@ class _DayCard extends StatelessWidget {
                 );
               }),
             ),
-
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
@@ -521,7 +551,8 @@ class _PrayerCircle extends StatelessWidget {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 48, height: 48,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: value
                   ? Colors.green
@@ -553,8 +584,7 @@ class _PrayerCircle extends StatelessWidget {
           Text(label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight:
-                    value ? FontWeight.bold : FontWeight.normal,
+                fontWeight: value ? FontWeight.bold : FontWeight.normal,
                 color: value ? Colors.green : Colors.grey.shade700,
               )),
         ],
