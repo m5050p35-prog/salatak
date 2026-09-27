@@ -27,7 +27,6 @@ class Storage {
     await p.remove(_currentUserKey);
   }
 
-  /// تحميل — Supabase أولاً ثم Cache
   static Future<UserData> loadUser(String id) async {
     try {
       final cloudData = await SupabaseService.loadUser(id);
@@ -39,7 +38,6 @@ class Storage {
     return await _loadLocal(id);
   }
 
-  /// حفظ — محلي + سحابة
   static Future<bool> saveUser(UserData user) async {
     final localOk = await _saveLocal(user);
     try {
@@ -71,13 +69,14 @@ class Storage {
     }
   }
 
-  /// تحقق من البريد
-  static String? validateEmail(String value) {
-    final v = value.trim();
+  /// تحقق من Gmail فقط
+  static String? validateGmail(String value) {
+    final v = value.trim().toLowerCase();
     if (v.isEmpty) return 'empty';
-    final emailRegex = RegExp(r'^[\w\.\-]+@[\w\.\-]+\.\w+$');
-    if (emailRegex.hasMatch(v)) return null;
-    return 'invalid';
+    if (!v.endsWith('@gmail.com')) return 'not_gmail';
+    final regex = RegExp(r'^[a-z0-9](\.?[a-z0-9]){4,}@gmail\.com$');
+    if (!regex.hasMatch(v)) return 'invalid';
+    return null;
   }
 
   /// تحقق من الاسم
@@ -86,5 +85,14 @@ class Storage {
     if (v.isEmpty) return 'empty';
     if (v.length < 2) return 'short';
     return null;
+  }
+
+  /// هل الحساب موجود في السحابة؟
+  static Future<bool> userExists(String email) async {
+    try {
+      return await SupabaseService.userExists(email);
+    } catch (_) {
+      return false;
+    }
   }
 }

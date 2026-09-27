@@ -15,7 +15,19 @@ class SupabaseService {
     );
   }
 
-  /// حفظ/تحديث بيانات المستخدم كاملة
+  static Future<bool> userExists(String identifier) async {
+    try {
+      final row = await _client
+          .from('users')
+          .select('id')
+          .eq('identifier', identifier)
+          .maybeSingle();
+      return row != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<bool> saveUser(UserData user) async {
     try {
       final existing = await _client
@@ -43,10 +55,8 @@ class SupabaseService {
         }).eq('id', userId);
       }
 
-      // احذف الأيام القديمة
       await _client.from('prayer_days').delete().eq('user_id', userId);
 
-      // أدرج الأيام الجديدة على دفعات
       if (user.days.isNotEmpty) {
         final rows = user.days
             .map((d) => {
@@ -63,12 +73,9 @@ class SupabaseService {
 
         const batchSize = 500;
         for (int i = 0; i < rows.length; i += batchSize) {
-          final end = (i + batchSize < rows.length)
-              ? i + batchSize
-              : rows.length;
-          await _client
-              .from('prayer_days')
-              .insert(rows.sublist(i, end));
+          final end =
+              (i + batchSize < rows.length) ? i + batchSize : rows.length;
+          await _client.from('prayer_days').insert(rows.sublist(i, end));
         }
       }
       return true;
@@ -79,7 +86,6 @@ class SupabaseService {
     }
   }
 
-  /// تحميل بيانات المستخدم
   static Future<UserData?> loadUser(String identifier) async {
     try {
       final userRow = await _client

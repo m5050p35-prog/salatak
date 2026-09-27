@@ -6,24 +6,41 @@ import 'storage.dart';
 import 'providers/settings_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'services/supabase_service.dart';
+import 'services/notification_service.dart';
 import 'login_screen.dart';
 import 'tracker_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // تهيئة Supabase
+  // 1) تهيئة Supabase
   try {
     await SupabaseService.initialize();
   } catch (e) {
-    // إذا فشل الاتصال، التطبيق يعمل offline
     // ignore: avoid_print
-    print('Supabase init failed (offline mode): $e');
+    print('Supabase init failed: $e');
   }
 
-  // تحميل الإعدادات
+  // 2) تهيئة الإشعارات
+  try {
+    await NotificationService.initialize();
+  } catch (e) {
+    // ignore: avoid_print
+    print('Notification init failed: $e');
+  }
+
+  // 3) تحميل الإعدادات
   final settings = SettingsProvider();
   await settings.load();
+
+  // 4) إذا كانت الإشعارات مفعلة، أعد جدولتها (بعد إعادة التشغيل)
+  if (settings.notificationsEnabled) {
+    try {
+      await NotificationService.scheduleDaily(
+        time: settings.notificationTime,
+      );
+    } catch (_) {}
+  }
 
   runApp(
     ChangeNotifierProvider.value(

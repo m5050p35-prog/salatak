@@ -1,7 +1,7 @@
 name: salatak
 description: "تطبيق صلاتك لقضاء الصلاة"
 publish_to: 'none'
-version: 2.1.0+3
+version: 3.0.0+4
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -15,12 +15,25 @@ dependencies:
   shared_preferences: ^2.3.2
   provider: ^6.1.2
   supabase_flutter: ^2.8.0
-  connectivity_plus: ^6.1.0
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^3.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#0E7C66"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  min_sdk_android: 23
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/
